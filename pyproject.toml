@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slag-inspect"
+version = "0.1.0"
+description = "Non-contact slag pot crack candidate inspection prototype"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2.0,<3", "scipy>=1.13,<2", "Pillow>=10.4,<13"]
+
+[project.scripts]
+slag-inspect = "slag_inspect.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["slag_inspect*"]
