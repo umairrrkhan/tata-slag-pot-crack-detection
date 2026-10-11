@@ -4,6 +4,10 @@
 **Date:** 11 October 2026  
 **Project:** [tata-slag-pot-crack-detection](https://github.com/umairrrkhan/tata-slag-pot-crack-detection)
 
+## Current implementation revision
+
+The optimized v2 software processes views individually, uses byte image buffers and local thermal analysis, and checks component workload limits. Current validation and controlled before/after measurements are in [EDGE_OPTIMIZATION_REPORT.md](EDGE_OPTIMIZATION_REPORT.md). The initial v1 demonstration metrics retained below are historical.
+
 ## Executive summary
 
 We propose a shared inspection station for approximately 20 slag pots that combines high-resolution visible imaging, optional high-temperature radiometric thermal imaging, and local image analysis. Cameras and illumination are mounted on the inspection station; no sensor is attached to a slag pot. The station inspects empty pots on the return route, prioritizes recurring defect locations while retaining full-surface coverage, and produces annotated images, ranked crack indications, and a digital history for each pot.
@@ -62,7 +66,7 @@ The implemented baseline uses compiled NumPy/SciPy morphology to extract narrow 
 
 Candidates are ranked using projected pixel extent, overlap with configured recurring locations, and optional local thermal contrast. Scores are explicit heuristics rather than calibrated confidence or failure probabilities. Full supplied regions remain eligible for detection, so hotspot prioritization does not exclude new locations.
 
-For fixed filter sizes, image filtering and labeling have approximately linear processing cost in pixel count, and memory scales with input size. Component geometry is calculated within local bounding boxes. Input budgets of eight million pixels per view and 32 views per inspection limit workload. Larger production views require suitable acquisition tiling and reconciliation, which remain integration work.
+For fixed filter sizes, image filtering and labeling have approximately linear processing cost in pixel count, and memory scales with input size. Component geometry is calculated within local bounding boxes. The default edge profile limits each view to 1,048,576 pixels; the optional standard profile permits eight million. Both limit inspections to 32 views, with explicit component-count and extent limits that request qualified review when exceeded. Larger production views require suitable acquisition tiling and reconciliation, which remain integration work.
 
 For production, train a compact segmentation network on annotated plant images containing cracks and difficult negatives such as seams, scratches, scale, deposits, and repairs. Evaluate isolated, branched, and network indications if sufficient labeled examples exist. ONNX deployment and validated FP16/INT8 inference can improve throughput after confirming small-defect recall.
 

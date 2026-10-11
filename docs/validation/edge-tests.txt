@@ -1,0 +1,36 @@
+test_bad_quality (test_inspection.DetectionTests.test_bad_quality) ... ok
+test_clutter_budget_requires_review (test_inspection.DetectionTests.test_clutter_budget_requires_review) ... ok
+test_dark_horizontal_geometry (test_inspection.DetectionTests.test_dark_horizontal_geometry) ... ok
+test_full_size_noisy_demo_keeps_both_cracks (test_inspection.DetectionTests.test_full_size_noisy_demo_keeps_both_cracks) ... ok
+test_hotspot_prioritizes_without_excluding_other_surface (test_inspection.DetectionTests.test_hotspot_prioritizes_without_excluding_other_surface) ... ok
+test_integer_budgets (test_inspection.DetectionTests.test_integer_budgets) ... ok
+test_invalid_config (test_inspection.DetectionTests.test_invalid_config) ... ok
+test_invalid_inputs (test_inspection.DetectionTests.test_invalid_inputs) ... ok
+test_large_component_requires_review (test_inspection.DetectionTests.test_large_component_requires_review) ... ok
+test_local_thermal_equals_full_frame_mean (test_inspection.DetectionTests.test_local_thermal_equals_full_frame_mean) ... ok
+test_noise_has_no_candidates (test_inspection.DetectionTests.test_noise_has_no_candidates) ... ok
+test_oblique (test_inspection.DetectionTests.test_oblique) ... ok
+test_roi_excludes_crack (test_inspection.DetectionTests.test_roi_excludes_crack) ... ok
+test_roi_without_filter_interior_requires_review (test_inspection.DetectionTests.test_roi_without_filter_interior_requires_review) ... ok
+test_round_blob_rejected (test_inspection.DetectionTests.test_round_blob_rejected) ... ok
+test_thermal_optional_and_corroborates (test_inspection.DetectionTests.test_thermal_optional_and_corroborates) ... ok
+test_uint8_morphology_matches_float (test_inspection.DetectionTests.test_uint8_morphology_matches_float) ... ok
+test_vertical_and_bright (test_inspection.DetectionTests.test_vertical_and_bright) ... ok
+test_bad_roi_dimensions_rejected_before_decode (test_inspection.IntegrationTests.test_bad_roi_dimensions_rejected_before_decode) ... ok
+test_bad_view_marks_incomplete (test_inspection.IntegrationTests.test_bad_view_marks_incomplete) ... ok
+test_duplicate_views_rejected (test_inspection.IntegrationTests.test_duplicate_views_rejected) ... ok
+test_failed_persistence_removes_partial_output (test_inspection.IntegrationTests.test_failed_persistence_removes_partial_output) ... ok
+test_mapped_thermal_report (test_inspection.IntegrationTests.test_mapped_thermal_report) ... ok
+test_missing_view_marks_incomplete (test_inspection.IntegrationTests.test_missing_view_marks_incomplete) ... ok
+test_naive_timestamp_rejected (test_inspection.IntegrationTests.test_naive_timestamp_rejected) ... ok
+test_nonstring_timestamp_rejected (test_inspection.IntegrationTests.test_nonstring_timestamp_rejected) ... ok
+test_path_identifier_rejected (test_inspection.IntegrationTests.test_path_identifier_rejected) ... ok
+test_reports_annotations_history_and_unique_records (test_inspection.IntegrationTests.test_reports_annotations_history_and_unique_records) ... ok
+test_required_views_string_rejected (test_inspection.IntegrationTests.test_required_views_string_rejected) ... ok
+test_twenty_views_stream_to_disk (test_inspection.IntegrationTests.test_twenty_views_stream_to_disk) ... ok
+test_twenty_views_have_bounded_tracked_allocations (test_memory.MemoryTests.test_twenty_views_have_bounded_tracked_allocations) ... ok
+
+----------------------------------------------------------------------
+Ran 31 tests in 6.174s
+
+OK

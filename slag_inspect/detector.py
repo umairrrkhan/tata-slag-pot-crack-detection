@@ -16,7 +16,9 @@ class Config:
     thermal_delta_c: float = 15.0
     min_std: float = 3.0
     max_saturated_fraction: float = 0.15
-    max_pixels: int = 8_000_000
+    max_pixels: int = 1_048_576
+    max_components: int = 16_384
+    max_component_pixels: int = 262_144
 
     def __post_init__(self):
         for key, value in asdict(self).items():
@@ -24,6 +26,28 @@ class Config:
                 raise ValueError(f"{key} must be positive and finite")
         if self.max_saturated_fraction > 1:
             raise ValueError("max_saturated_fraction must be <= 1")
+        for key in ("min_area", "max_pixels", "max_components", "max_component_pixels"):
+            if type(getattr(self, key)) is not int:
+                raise ValueError(f"{key} must be an integer")
+
+
+def _quality(image, roi):
+    # Bounded histogram strips avoid float64 full-frame variance temporaries.
+    histogram = np.zeros(256, dtype=np.int64)
+    for y in range(0, image.shape[0], 32):
+        strip = image[y:y + 32]
+        values = strip.ravel() if roi is None else strip[roi[y:y + 32]]
+        histogram += np.bincount(values, minlength=256)
+    count = int(histogram.sum())
+    levels = np.arange(256, dtype=np.float64)
+    mean = float(histogram @ levels / count)
+    variance = max(0, float(histogram @ (levels * levels) / count - mean * mean))
+    return {"std": math.sqrt(variance),
+            "saturated_fraction": float((histogram[:3].sum() + histogram[253:].sum()) / count)}
+
+
+def _uninspectable(quality, reason):
+    return {"status": "uninspectable", "quality": quality, "candidates": [], "reason": reason}
 
 
 def inspect(image, *, config=Config(), roi=None, mm_per_pixel=None,
@@ -40,47 +64,69 @@ def inspect(image, *, config=Config(), roi=None, mm_per_pixel=None,
         raise ValueError("image exceeds processing pixel budget; tile at acquisition")
     if mm_per_pixel is not None and (not math.isfinite(mm_per_pixel) or mm_per_pixel <= 0):
         raise ValueError("mm_per_pixel must be positive and finite")
-    if roi is None:
-        roi = np.ones(image.shape, dtype=bool)
-    else:
+    if roi is not None:
         roi = np.asarray(roi)
         if roi.dtype != bool or roi.shape != image.shape or not roi.any():
             raise ValueError("ROI must be a nonempty aligned boolean mask")
     if thermal is not None:
-        thermal = np.asarray(thermal, dtype=float)
-        if thermal.shape != image.shape or not np.isfinite(thermal).all():
+        thermal = np.asarray(thermal)
+        if thermal.shape != image.shape or thermal.dtype.kind not in "fiu":
             raise ValueError("thermal must be a finite, aligned Celsius array")
-        if thermal.min() < -273.15 or thermal.max() > 1500:
-            raise ValueError("thermal temperatures outside supported -273.15..1500 C")
+        for y in range(0, thermal.shape[0], 32):
+            strip = thermal[y:y + 32]
+            if not np.isfinite(strip).all():
+                raise ValueError("thermal must be a finite, aligned Celsius array")
+            if strip.min() < -273.15 or strip.max() > 1500:
+                raise ValueError("thermal temperatures outside supported -273.15..1500 C")
     height, width = image.shape
     for hotspot in hotspots:
         if (len(hotspot) != 4 or any(type(v) is not int for v in hotspot)
                 or not (0 <= hotspot[0] < hotspot[2] <= width
                         and 0 <= hotspot[1] < hotspot[3] <= height)):
             raise ValueError("hotspots must be integer [x0,y0,x1,y1] boxes in image")
-    values = image[roi]
-    saturated = float(np.mean((values <= 2) | (values >= 253)))
-    quality = {"std": float(values.std()), "saturated_fraction": saturated}
-    if quality["std"] < config.min_std or saturated > config.max_saturated_fraction:
-        return {"status": "uninspectable", "quality": quality, "candidates": [],
-                "reason": "low contrast or excessive clipping; reacquire and review"}
+    quality = _quality(image, roi)
+    quality["filter_margin_px"] = 8
+    if quality["std"] < config.min_std or quality["saturated_fraction"] > config.max_saturated_fraction:
+        return _uninspectable(quality, "low contrast or excessive clipping; reacquire and review")
 
     # Flat grayscale closing suppresses broad lighting changes, preserving dark lines.
     # Both polarities are searched; thermal is corroboration, never a required gate.
-    gray = image.astype(np.float32)
-    response = np.maximum(ndi.grey_closing(gray, size=(9, 9)) - gray,
-                          gray - ndi.grey_opening(gray, size=(9, 9)))
-    valid = ndi.binary_erosion(roi, iterations=4, border_value=0)
-    mask = (response >= config.contrast) & valid
-    labels, _ = ndi.label(mask, structure=np.ones((3, 3)))
+    # Closing is >= image and opening <= image, so uint8 subtraction is safe.
+    response = ndi.grey_closing(image, size=(9, 9))
+    np.subtract(response, image, out=response)
+    bright = ndi.grey_opening(image, size=(9, 9))
+    np.subtract(image, bright, out=bright)
+    np.maximum(response, bright, out=response)
+    del bright
+    mask = response >= config.contrast
+    del response
+    if roi is not None:
+        # Two radius-four filters compose to radius eight (square support).
+        valid = ndi.minimum_filter(roi, size=17, mode="constant", cval=0)
+        if not valid.any():
+            return _uninspectable(quality, "ROI has no valid filter interior")
+        mask &= valid
+        del valid
+    if min(image.shape) <= 16:
+        return _uninspectable(quality, "image has no valid filter interior")
+    mask[:8] = False
+    mask[-8:] = False
+    mask[:, :8] = False
+    mask[:, -8:] = False
+    labels, count = ndi.label(mask, structure=np.ones((3, 3)))
+    del mask
+    if count > config.max_components:
+        return _uninspectable(quality, "component budget exceeded; reacquire or inspect manually")
+    areas = np.zeros(count + 1, dtype=np.int64)
+    for y in range(0, height, 32):
+        areas += np.bincount(labels[y:y + 32].ravel(), minlength=count + 1)
     objects = ndi.find_objects(labels)
-    thermal_residual = None
-    if thermal is not None:
-        thermal_residual = thermal - ndi.uniform_filter(thermal, size=21)
     candidates = []
     for number, box in enumerate(objects, 1):
-        if box is None:
+        if box is None or areas[number] < config.min_area:
             continue
+        if (box[0].stop - box[0].start) * (box[1].stop - box[1].start) > config.max_component_pixels:
+            return _uninspectable(quality, "component extent budget exceeded; qualified review required")
         local = labels[box] == number
         ys, xs = np.nonzero(local)
         area = len(xs)
@@ -100,8 +146,16 @@ def inspect(image, *, config=Config(), roi=None, mm_per_pixel=None,
         x1, y1 = box[1].stop, box[0].stop
         recurring = any(x0 < h[2] and x1 > h[0] and y0 < h[3] and y1 > h[1]
                         for h in hotspots)
-        delta = (float(np.max(np.abs(thermal_residual[box][local])))
-                 if thermal_residual is not None else None)
+        delta = None
+        if thermal is not None:
+            # Full 21x21 neighborhood, only around candidates; preserve global
+            # reflect boundaries when the expanded patch meets image edges.
+            ty0, tx0 = max(0, y0 - 10), max(0, x0 - 10)
+            ty1, tx1 = min(height, y1 + 10), min(width, x1 + 10)
+            patch = thermal[ty0:ty1, tx0:tx1].astype(np.float32)
+            mean = ndi.uniform_filter(patch, size=21)
+            np.subtract(patch, mean, out=patch)
+            delta = float(np.max(np.abs(patch[y0-ty0:y1-ty0, x0-tx0:x1-tx0][local])))
         supported = delta is not None and delta >= config.thermal_delta_c
         angle = math.degrees(math.atan2(major[1], major[0])) % 180
         orientation = "horizontal" if angle < 30 or angle > 150 else (

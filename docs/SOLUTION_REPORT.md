@@ -2,6 +2,10 @@
 
 Date: 11 October 2026. Repository: `umairrrkhan/tata-slag-pot-crack-detection`.
 
+## Revision status
+
+The delivered software is now `morphology-edge-v2`. Read [the low-memory report](EDGE_OPTIMIZATION_REPORT.md) for current tests, measured resource use, streaming, and fixes. The v1 timings below are historical; current measurements include a controlled before/after comparison. Production imaging and validation requirements remain applicable.
+
 ## Recommendation
 
 Install a fixed inspection station on the empty-pot return route, using high-resolution visible cameras as the primary crack sensing modality, with a high-temperature radiometric thermal camera as supporting evidence. Use existing handling equipment to present repeatable views. All instruments remain on the station, with no sensor mounted on a pot. Process images locally and automatically create a ranked defect report and a digital inspection history for each of approximately 20 pots.
@@ -47,7 +51,7 @@ Thermal imaging alone is insufficient: emissivity changes, oxide and slag deposi
 
 ## Speed and scale
 
-The CPU baseline uses compiled NumPy/SciPy operations. Filters and component labeling operate over pixels; geometry is computed only within component bounding boxes. For fixed filter sizes, expected processing work is approximately linear in pixel count, with memory proportional to image size. Pathological image texture can increase component overhead. The eight-million-pixel limit bounds input size, not a certified memory ceiling.
+The CPU baseline uses compiled NumPy/SciPy operations. Filters and component labeling operate over pixels; geometry is computed only within component bounding boxes. For fixed filter sizes, expected processing work is approximately linear in pixel count, with memory proportional to image size. Pathological image texture can increase component overhead. The default 1,048,576-pixel edge limit (eight million in the optional standard profile) bounds input size, not a certified memory ceiling.
 
 At the scale of 20 pots, one shared station with local processing is preferable to instrumenting every pot. Pipeline acquisition and processing in production and cap queues so stale inspections are visible. Derive scheduling from the actual return rate and station dwell time; 20 pots alone does not determine throughput.
 
@@ -59,7 +63,7 @@ The prototype writes a UUID-scoped Markdown and JSON report and annotated PNG fo
 
 An incomplete or uninspectable result must trigger reacquisition or manual inspection under plant procedure. An urgent candidate requests prompt qualified review; authorized personnel decide quarantine, NDT, repair, or serviceability using established engineering limits. No software result in this repository releases a pot automatically.
 
-Production records should add calibrated pot coordinates, defect IDs matched across views/cycles, reviewer decisions, repair history, audit events, immutable original camera captures, model artifact hashes, retention policy, access control, backup, and MES/CMMS integration. Prototype history is append-only through the application, but SQLite is not tamper-proof. Report files and database writes are not one atomic transaction; a crash can leave an unindexed directory. Recovery and reconciliation are needed before unattended deployment. Missing thermal data is explicitly visible in provenance and candidate fields, but camera dropout recovery is not implemented.
+Production records should add calibrated pot coordinates, defect IDs matched across views/cycles, reviewer decisions, repair history, audit events, immutable original camera captures, model artifact hashes, retention policy, access control, backup, and MES/CMMS integration. Prototype history is append-only through the application, but SQLite is not tamper-proof. Report files and database writes are not one atomic transaction; a process crash can leave an unindexed directory. Ordinary persistence exceptions now remove partial directories and staging is cleaned automatically. Recovery and reconciliation are needed before unattended deployment. Missing thermal data is explicitly visible in provenance and candidate fields, but camera dropout recovery is not implemented.
 
 ## Predictive monitoring
 

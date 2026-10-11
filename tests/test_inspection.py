@@ -3,12 +3,14 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
 
 from slag_inspect.cli import run
 from slag_inspect.detector import Config, inspect
+from scipy import ndimage as ndi
 
 
 def surface(shape=(256, 256)):
@@ -46,6 +48,14 @@ class DetectionTests(unittest.TestCase):
 
     def test_noise_has_no_candidates(self):
         self.assertEqual(inspect(surface())["status"], "no_candidates_review_required")
+
+    def test_full_size_noisy_demo_keeps_both_cracks(self):
+        image = np.clip(np.random.default_rng(42).normal(145, 5, (768, 1024)), 0, 255).astype(np.uint8)
+        image[300:303, 200:750] = 45
+        image[450:650, 800:803] = 45
+        result = inspect(image)
+        self.assertEqual(result["status"], "review_required")
+        self.assertEqual(len(result["candidates"]), 2)
 
     def test_round_blob_rejected(self):
         image = surface()
@@ -95,6 +105,41 @@ class DetectionTests(unittest.TestCase):
         for kwargs in ({"contrast": 0}, {"min_area": -1}, {"max_saturated_fraction": 2}):
             with self.assertRaises(ValueError):
                 Config(**kwargs)
+
+    def test_integer_budgets(self):
+        for key in ("min_area", "max_pixels", "max_components", "max_component_pixels"):
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                Config(**{key: 2.5})
+
+    def test_clutter_budget_requires_review(self):
+        image = surface()
+        image[20:230:5, 20:230:5] = 45
+        result = inspect(image, config=Config(max_components=5))
+        self.assertEqual(result["status"], "uninspectable")
+        self.assertIn("component budget", result["reason"])
+
+    def test_large_component_requires_review(self):
+        result = inspect(crack(), config=Config(max_component_pixels=100))
+        self.assertEqual(result["status"], "uninspectable")
+
+    def test_roi_without_filter_interior_requires_review(self):
+        roi = np.zeros((256, 256), bool)
+        roi[125:130, :] = True
+        self.assertEqual(inspect(crack(), roi=roi)["status"], "uninspectable")
+
+    def test_local_thermal_equals_full_frame_mean(self):
+        thermal = np.random.default_rng(19).normal(600, 10, (256, 256)).astype(np.float32)
+        thermal[126:129, 40:205] += 40
+        candidate = inspect(crack(), thermal=thermal)["candidates"][0]
+        expected = np.abs(thermal - ndi.uniform_filter(thermal, size=21))[126:129, 40:205].max()
+        self.assertAlmostEqual(candidate["thermal_delta_c"], float(expected), places=3)
+
+    def test_uint8_morphology_matches_float(self):
+        image = crack()
+        gray = image.astype(np.float32)
+        expected = np.maximum(ndi.grey_closing(gray, size=9)-gray, gray-ndi.grey_opening(gray, size=9))
+        actual = np.maximum(ndi.grey_closing(image, size=9)-image, image-ndi.grey_opening(image, size=9))
+        np.testing.assert_array_equal(actual, expected)
 
 
 class IntegrationTests(unittest.TestCase):
@@ -150,6 +195,44 @@ class IntegrationTests(unittest.TestCase):
         self.manifest["captured_at"] = "2026-10-11T12:00:00"
         with self.assertRaises(ValueError):
             self.execute()
+
+    def test_nonstring_timestamp_rejected(self):
+        self.manifest["captured_at"] = 123
+        with self.assertRaises(ValueError):
+            self.execute()
+
+    def test_required_views_string_rejected(self):
+        self.manifest["required_views"] = "front"
+        with self.assertRaises(ValueError):
+            self.execute()
+
+    def test_failed_persistence_removes_partial_output(self):
+        with patch("slag_inspect.reporting.shutil.copyfile", side_effect=OSError("disk failure")):
+            with self.assertRaises(OSError):
+                self.execute()
+        self.assertEqual(list((self.root / "out").iterdir()), [])
+
+    def test_bad_roi_dimensions_rejected_before_decode(self):
+        Image.fromarray(np.ones((32, 32), np.uint8)).save(self.root / "roi.png")
+        self.manifest["views"][0]["roi"] = "roi.png"
+        with self.assertRaises(ValueError):
+            self.execute()
+
+    def test_twenty_views_stream_to_disk(self):
+        self.manifest["views"] = [{"view_id": f"v{i}", "image": "view.png"} for i in range(20)]
+        self.manifest["required_views"] = [v["view_id"] for v in self.manifest["views"]]
+        record, directory = self.execute()
+        self.assertEqual(len(record["views"]), 20)
+        self.assertEqual(len(list(directory.glob("*.png"))), 20)
+        self.assertFalse(list((self.root / "out").glob(".staging-*")))
+
+    def test_mapped_thermal_report(self):
+        thermal = np.full((256, 256), 600, np.float32)
+        thermal[126:129, 40:205] += 45
+        np.save(self.root / "thermal.npy", thermal)
+        self.manifest["views"][0]["thermal"] = "thermal.npy"
+        record, _ = self.execute()
+        self.assertTrue(record["views"][0]["candidates"][0]["thermal_support"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,114 @@
+{
+  "optimized": [
+    {
+      "mode": "detector",
+      "dimensions": [
+        1024,
+        768
+      ],
+      "thermal": true,
+      "runs": 10,
+      "median_ms": 49.84406999983548,
+      "p95_ms": 55.52142015021673,
+      "peak_traced_mib": 3.7909278869628906,
+      "process_peak_rss_mib": 55.26953125,
+      "candidates": 1,
+      "python": "3.12.14",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+    },
+    {
+      "mode": "1",
+      "dimensions": [
+        1024,
+        768
+      ],
+      "thermal": true,
+      "runs": 1,
+      "median_ms": 284.3050090004908,
+      "p95_ms": 284.3050090004908,
+      "peak_traced_mib": 4.562551498413086,
+      "process_peak_rss_mib": 60.0546875,
+      "candidates": 1,
+      "python": "3.12.14",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+    },
+    {
+      "mode": "20",
+      "dimensions": [
+        1024,
+        768
+      ],
+      "thermal": true,
+      "runs": 1,
+      "median_ms": 5024.875463999706,
+      "p95_ms": 5024.875463999706,
+      "peak_traced_mib": 4.636832237243652,
+      "process_peak_rss_mib": 61.39453125,
+      "candidates": 20,
+      "python": "3.12.14",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+    }
+  ],
+  "baseline": [
+    {
+      "mode": "detector",
+      "dimensions": [
+        1024,
+        768
+      ],
+      "thermal": true,
+      "runs": 10,
+      "median_ms": 103.34722199968382,
+      "p95_ms": 111.5132008997989,
+      "peak_traced_mib": 30.002111434936523,
+      "process_peak_rss_mib": 82.7890625,
+      "candidates": 1,
+      "python": "3.12.14",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+    },
+    {
+      "mode": "1",
+      "dimensions": [
+        1024,
+        768
+      ],
+      "thermal": true,
+      "runs": 1,
+      "median_ms": 372.902716999306,
+      "p95_ms": 372.902716999306,
+      "peak_traced_mib": 33.764344215393066,
+      "process_peak_rss_mib": 88.67578125,
+      "candidates": 1,
+      "python": "3.12.14",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+    },
+    {
+      "mode": "20",
+      "dimensions": [
+        1024,
+        768
+      ],
+      "thermal": true,
+      "runs": 1,
+      "median_ms": 6456.584537999333,
+      "p95_ms": 6456.584537999333,
+      "peak_traced_mib": 48.08417320251465,
+      "process_peak_rss_mib": 102.34375,
+      "candidates": 20,
+      "python": "3.12.14",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+    }
+  ]
+}
